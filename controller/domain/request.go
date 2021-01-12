@@ -1,11 +1,11 @@
 package domain
 
-type MysqlInstallReq struct {
+/*type MysqlInstallReq struct {
     User    string `json:"user"`
     Pwd     string `json:"pwd"`
     Address string `json:"address"`
     //Version string `json:"version"`
-}
+}*/
 
 type AddInstanceReq struct {
     Port     int    `json:"port" binding:"required"`

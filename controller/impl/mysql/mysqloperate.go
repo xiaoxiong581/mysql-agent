@@ -66,14 +66,14 @@ func Install(ctx context.Context, c *gin.Context) (interface{}, error) {
     ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*5))
     defer cancel()
 
-    req := &domain.MysqlInstallReq{}
-    if err := c.ShouldBindJSON(req); err != nil {
-        logger.Error("convert remoteInstall req to json failed, err: %s", err.Error())
-        return domain.BaseResponse{
-            Code:    resultcode.RequestIllegal,
-            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
-        }, nil
-    }
+    /*req := &domain.MysqlInstallReq{}
+      if err := c.ShouldBindJSON(req); err != nil {
+          logger.Error("convert remoteInstall req to json failed, err: %s", err.Error())
+          return domain.BaseResponse{
+              Code:    resultcode.RequestIllegal,
+              Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
+          }, nil
+      }*/
 
     if isExist, err := service.CheckFileIsExist(*service.ConfPath); isExist {
         if err != nil {

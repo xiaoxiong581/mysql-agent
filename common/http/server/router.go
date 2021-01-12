@@ -25,7 +25,7 @@ type Router struct {
 var OpenRouters = []Router{
     {GET, "/v1/mysqlagent/health/healthcheck", health.Healthcheck},
     {POST, "/v1/mysqlagent/mysql/install", mysql.Install},
-    {GET, "/v1/mysqlagent/mysql/uninstall", mysql.UnInstall},
+    {POST, "/v1/mysqlagent/mysql/uninstall", mysql.UnInstall},
     {POST, "/v1/mysqlagent/mysql/instance/add", mysql.AddInstance},
     {DELETE, "/v1/mysqlagent/mysql/instance/delete", mysql.DeleteInstance},
     {GET, "/v1/mysqlagent/mysql/instance/list", mysql.ListInstance},
