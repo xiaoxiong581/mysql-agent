@@ -123,7 +123,7 @@ func UnInstall(ctx context.Context, c *gin.Context) (interface{}, error) {
 
     logger.Info("begin to unInstall mysql")
     commands := []string{
-        "yum remove mysql-community*",
+        "yum remove mysql-community* -y",
         "rpm -e mysql57-community-release-el7-8.noarch || true",
         "rm -f " + *service.ConfPath,
     }
