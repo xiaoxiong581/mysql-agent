@@ -17,3 +17,7 @@ type ModifyInstanceReq struct {
     Port       int               `json:"port" binding:"required"`
     Properties map[string]string `json:"properties"`
 }
+
+type OperateInstanceReq struct {
+    Port       int               `json:"port" binding:"required"`
+}

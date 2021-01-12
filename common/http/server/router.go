@@ -30,4 +30,6 @@ var OpenRouters = []Router{
     {DELETE, "/v1/mysqlagent/mysql/instance/delete", mysql.DeleteInstance},
     {GET, "/v1/mysqlagent/mysql/instance/list", mysql.ListInstance},
     {POST, "/v1/mysqlagent/mysql/instance/modify", mysql.ModifyInstance},
+    {POST, "/v1/mysqlagent/mysql/instance/start", mysql.StartInstance},
+    {POST, "/v1/mysqlagent/mysql/instance/stop", mysql.StopInstance},
 }

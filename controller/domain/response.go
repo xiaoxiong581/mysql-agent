@@ -10,6 +10,10 @@ type BaseResponse struct {
     Message string `json:"message"`
 }
 
+type AddInstanceRsp struct {
+    BaseResponse
+    Data InstanceInfo `json:"data"`
+}
 type ListInstanceResponse struct {
     BaseResponse
     Datas []InstanceConfig `json:"datas"`

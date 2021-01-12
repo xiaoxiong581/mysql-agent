@@ -42,3 +42,13 @@ Query MySQL Instance
 ```sh
 curl -X GET https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/list -H "Content-Type:application/json" -k -s
 ```
+
+Start MySQL Instance
+```sh
+curl -X GET https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/start -H "Content-Type:application/json" -d '{"port": 3403}' -k -s
+```
+
+Stop MySQL Instance
+```sh
+curl -X GET https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/stop -H "Content-Type:application/json" -d '{"port": 3403}' -k -s
+```

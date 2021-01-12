@@ -122,6 +122,44 @@ func UnInstall(ctx context.Context, c *gin.Context) (interface{}, error) {
     defer cancel()
 
     logger.Info("begin to unInstall mysql")
+    file, err := os.Open(*service.ConfPath)
+    if err != nil {
+        logger.Error("list instance failed, open conf file fail, err: %s", err.Error())
+        return domain.ListInstanceResponse{
+            BaseResponse: domain.BaseResponse{
+                Code:    resultcode.SystemInternalException,
+                Message: err.Error(),
+            },
+        }, nil
+    }
+    defer file.Close()
+    scanner := bufio.NewScanner(file)
+    instanceName := ""
+    for scanner.Scan() {
+        lineStr := scanner.Text()
+        lineStr = strings.TrimSpace(lineStr)
+        if strings.HasPrefix(lineStr, "#") {
+            continue
+        }
+        if strings.HasPrefix(lineStr, "[mysqld@") {
+            instanceName = lineStr
+            instanceName = strings.ReplaceAll(instanceName, "[", "")
+            instanceName = strings.ReplaceAll(instanceName, "]", "")
+            service.ExecuteMultiCmd([]string{fmt.Sprintf("systemctl stop %s || true", instanceName), fmt.Sprintf("systemctl disable %s || true", instanceName)})
+            continue
+        }
+        if strings.HasPrefix(lineStr, "[mysqld") || instanceName == "" {
+            continue
+        }
+        if confs := strings.Split(lineStr, "="); len(confs) == 2 {
+            confs[0] = strings.TrimSpace(confs[0])
+            confs[1] = strings.TrimSpace(confs[1])
+            if strings.EqualFold(confs[0], "datadir") {
+                service.ExecuteSingleCmd("rm -rf " + confs[1])
+            }
+        }
+    }
+
     commands := []string{
         "yum remove mysql-community* -y",
         "rpm -e mysql57-community-release-el7-8.noarch || true",
@@ -148,16 +186,20 @@ func AddInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
     req := &domain.AddInstanceReq{}
     if err := c.ShouldBindJSON(req); err != nil {
         logger.Error("convert addInstance req to json failed, err: %s", err.Error())
-        return domain.BaseResponse{
-            Code:    resultcode.RequestIllegal,
-            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
+        return domain.AddInstanceRsp{
+            BaseResponse: domain.BaseResponse{
+                Code:    resultcode.RequestIllegal,
+                Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
+            },
         }, nil
     }
     port := req.Port
     if err := service.CheckPortValid(port); err != "" {
-        return domain.BaseResponse{
-            Code:    resultcode.RequestIllegal,
-            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err),
+        return domain.AddInstanceRsp{
+            BaseResponse: domain.BaseResponse{
+                Code:    resultcode.RequestIllegal,
+                Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err),
+            },
         }, nil
     }
 
@@ -177,16 +219,43 @@ func AddInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
     }
 
     if _, err := service.ExecuteMultiCmd(commands); err != "" {
-        return domain.BaseResponse{
-            Code:    resultcode.SystemInternalException,
-            Message: err,
+        return domain.AddInstanceRsp{
+            BaseResponse: domain.BaseResponse{
+                Code:    resultcode.SystemInternalException,
+                Message: err,
+            },
         }, nil
     }
 
+    condi := "A temporary password is generated for root@localhost: "
+    output, error := service.ExecuteSingleCmd(fmt.Sprintf("cat /var/log/mysqld.log | grep \"%s\" | tail -n 1", condi))
+    if error != "" {
+        return domain.AddInstanceRsp{
+            BaseResponse: domain.BaseResponse{
+                Code:    domain.SUCCESS_CODE,
+                Message: "add instance success, but get root password failed, err: " + error,
+            },
+        }, nil
+    }
+    output = strings.ReplaceAll(output, "\n", "")
+    if output == "" {
+        return domain.AddInstanceRsp{
+            BaseResponse: domain.BaseResponse{
+                Code:    domain.SUCCESS_CODE,
+                Message: "add instance success, but get root password is null",
+            },
+        }, nil
+    }
+
+    condi = "root@localhost: "
+    tempPwd := output[strings.LastIndex(output, condi)+len(condi):]
     logger.Info("end to add instance")
-    return domain.BaseResponse{
-        Code:    domain.SUCCESS_CODE,
-        Message: domain.SUCCESS_MESSAGE,
+    return domain.AddInstanceRsp{
+        BaseResponse: domain.BaseResponse{
+            Code:    domain.SUCCESS_CODE,
+            Message: domain.SUCCESS_MESSAGE,
+        },
+        Data: domain.InstanceInfo{Password: tempPwd},
     }, nil
 }
 
@@ -286,7 +355,7 @@ func ListInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
             confs[0] = strings.TrimSpace(confs[0])
             confs[1] = strings.TrimSpace(confs[1])
             instanceConfig.Properties[confs[0]] = confs[1]
-            if strings.HasPrefix(confs[0], "port") {
+            if strings.EqualFold(confs[0], "port") {
                 instanceConfig.Port, _ = strconv.Atoi(confs[1])
             }
         }
@@ -350,7 +419,7 @@ func ModifyInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
     var instanceConfigs []string
     instanceConfigs = append(instanceConfigs, fmt.Sprintf("[mysqld@%s]", portStr))
     for key, value := range req.Properties {
-        instanceConfigs = append(instanceConfigs, fmt.Sprintf("%s = %s", key, value))
+        instanceConfigs = append(instanceConfigs, fmt.Sprintf("%s=%s", key, value))
     }
     commands := []string{
         fmt.Sprintf("sed -i '%d, %dd' %s", beginLine, endLine, *service.ConfPath),
@@ -366,6 +435,81 @@ func ModifyInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
     }
 
     logger.Info("end to modify instance")
+    return domain.BaseResponse{
+        Code:    domain.SUCCESS_CODE,
+        Message: domain.SUCCESS_MESSAGE,
+    }, nil
+}
+
+func StartInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
+    ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*5))
+    defer cancel()
+
+    req := &domain.OperateInstanceReq{}
+    if err := c.ShouldBindJSON(req); err != nil {
+        logger.Error("convert startInstance req to json failed, err: %s", err.Error())
+        return domain.BaseResponse{
+            Code:    resultcode.RequestIllegal,
+            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
+        }, nil
+    }
+
+    if isExist := service.CheckInstanceIsExist(req.Port); !isExist {
+        error := "start instance failed, instance not exist"
+        logger.Error(error)
+        return domain.BaseResponse{
+            Code:    resultcode.RequestIllegal,
+            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], error),
+        }, nil
+    }
+
+    logger.Info("begin to start instance")
+    portStr := strconv.Itoa(req.Port)
+    commands := []string{
+        fmt.Sprintf("systemctl restart mysqld@%s || true", portStr),
+        fmt.Sprintf("systemctl enable mysqld@%s || true", portStr),
+    }
+
+    if _, err := service.ExecuteMultiCmd(commands); err != "" {
+        return domain.BaseResponse{
+            Code:    resultcode.SystemInternalException,
+            Message: err,
+        }, nil
+    }
+    logger.Info("end to start instance")
+    return domain.BaseResponse{
+        Code:    domain.SUCCESS_CODE,
+        Message: domain.SUCCESS_MESSAGE,
+    }, nil
+}
+
+func StopInstance(ctx context.Context, c *gin.Context) (interface{}, error) {
+    ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*5))
+    defer cancel()
+
+    req := &domain.OperateInstanceReq{}
+    if err := c.ShouldBindJSON(req); err != nil {
+        logger.Error("convert stopInstance req to json failed, err: %s", err.Error())
+        return domain.BaseResponse{
+            Code:    resultcode.RequestIllegal,
+            Message: fmt.Sprintf(resultcode.ResultMessage[resultcode.RequestIllegal], err.Error()),
+        }, nil
+    }
+
+    logger.Info("begin to stop instance")
+    portStr := strconv.Itoa(req.Port)
+    commands := []string{
+        fmt.Sprintf("systemctl stop mysqld@%s || true", portStr),
+        fmt.Sprintf("systemctl disable mysqld@%s || true", portStr),
+    }
+
+    if _, err := service.ExecuteMultiCmd(commands); err != "" {
+        return domain.BaseResponse{
+            Code:    resultcode.SystemInternalException,
+            Message: err,
+        }, nil
+    }
+    logger.Info("end to stop instance")
     return domain.BaseResponse{
         Code:    domain.SUCCESS_CODE,
         Message: domain.SUCCESS_MESSAGE,

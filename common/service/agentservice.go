@@ -24,16 +24,16 @@ func CheckFileIsExist(filePath string) (bool, error) {
 }
 
 func CheckPortValid(port int) string {
-    command := fmt.Sprintf("cat %s | grep \"port=%d\" | wc -l", *ConfPath, port)
-    output, err := ExecuteSingleCmd(command)
-    if err != "" {
+    command := fmt.Sprintf("cat %s | grep 'port=%d' | wc -l", *ConfPath, port)
+    output, error := ExecuteSingleCmd(command)
+    if error != "" {
         logger.Error("check port valid failed")
-        return err
+        return error
     }
     output = strings.ReplaceAll(output, "\n", "")
-    count, err1 := strconv.Atoi(output)
-    if err1 != nil {
-        error := fmt.Sprintf("convert check port result failed, err: %s", err1.Error())
+    count, err := strconv.Atoi(output)
+    if err != nil {
+        error := fmt.Sprintf("convert check port result failed, err: %s", err.Error())
         logger.Error(error)
         return error
     }
@@ -44,6 +44,27 @@ func CheckPortValid(port int) string {
     }
 
     return ""
+}
+
+func CheckInstanceIsExist(port int) bool {
+    command := fmt.Sprintf("cat %s | grep '\\[mysqld@%d\\]' | wc -l", *ConfPath, port)
+    output, error := ExecuteSingleCmd(command)
+    if error != "" {
+        logger.Error("check instance exist failed")
+        return false
+    }
+    output = strings.ReplaceAll(output, "\n", "")
+    count, err := strconv.Atoi(output)
+    if err != nil {
+        error = fmt.Sprintf("convert check instance exist result failed, err: %s", err.Error())
+        logger.Error(error)
+        return false
+    }
+    if count > 0 {
+        return true
+    }
+
+    return false
 }
 
 func QueryInstanceConfigRange(portStr string) (int, int, string) {
