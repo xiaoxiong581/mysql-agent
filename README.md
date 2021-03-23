@@ -25,7 +25,7 @@ curl -X POST https://127.0.0.1:30033/v1/mysqlagent/mysql/uninstall -H "Content-T
 
 Add MySQL Instance
 ```sh
-curl -X POST https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/add -H "Content-Type:application/json" -d '{"port": 3403, "serverId": 3, "dataDir": "/data/3403"}' -k -s
+curl -X POST https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/add -H "Content-Type:application/json" -d '{"port": 3403, "serverId": 3, "dataDir": "/data/3403", "pwd": "Xxxyy@1234"}' -k -s
 ```
 
 Delete MySQL Instance
@@ -36,6 +36,11 @@ curl -X DELETE https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/delete?port=
 Modify MySQL Instance
 ```sh
 curl -X POST https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/modify -H "Content-Type:application/json" -d '{"port": 3403, "serverId": 999, "dataDir": "/data/3403"}' -k -s
+```
+
+Modify MySQL Instance Pwd
+```sh
+curl -X POST https://127.0.0.1:30033/v1/mysqlagent/mysql/instance/modifyowd -H "Content-Type:application/json" -d '{"port": 3403, "oldPwd": xxxx, "newPwd": "yyy"}' -k -s
 ```
 
 Query MySQL Instance

@@ -3,6 +3,7 @@ package service
 import (
     "flag"
     "fmt"
+    "mysql-agent/common/env"
     "mysql-agent/common/logger"
     "os"
     "os/exec"
@@ -24,7 +25,7 @@ func CheckFileIsExist(filePath string) (bool, error) {
 }
 
 func CheckPortValid(port int) string {
-    command := fmt.Sprintf("cat %s | grep 'port=%d' | wc -l", *ConfPath, port)
+    command := fmt.Sprintf("cat %s | grep 'port=%d' | wc -l", *env.ConfPath, port)
     output, error := ExecuteSingleCmd(command)
     if error != "" {
         logger.Error("check port valid failed")
@@ -47,7 +48,7 @@ func CheckPortValid(port int) string {
 }
 
 func CheckInstanceIsExist(port int) bool {
-    command := fmt.Sprintf("cat %s | grep '\\[mysqld@%d\\]' | wc -l", *ConfPath, port)
+    command := fmt.Sprintf("cat %s | grep '\\[mysqld@%d\\]' | wc -l", *env.ConfPath, port)
     output, error := ExecuteSingleCmd(command)
     if error != "" {
         logger.Error("check instance exist failed")
@@ -67,13 +68,30 @@ func CheckInstanceIsExist(port int) bool {
     return false
 }
 
+func CheckInstanceIsRunning(port int) bool {
+    output, error := ExecuteSingleCmd(fmt.Sprintf("systemctl status mysqld@%d | grep Active", port))
+    if error != "" {
+        logger.Error("query instance %d status error, error: %s", port, error)
+        return false
+    }
+
+    status := ""
+    beginIndex := strings.LastIndex(output, "(")
+    endIndex := strings.LastIndex(output, ")")
+    if beginIndex != -1 && endIndex != -1 {
+        status = output[beginIndex+1 : endIndex]
+    }
+
+    return "running" == status
+}
+
 func QueryInstanceConfigRange(portStr string) (int, int, string) {
     if portStr == "" {
         logger.Info("port or ConfPath is null")
         return 0, 0, ""
     }
 
-    cmd := fmt.Sprintf("cat %s | grep -n '\\[mysqld'", *ConfPath)
+    cmd := fmt.Sprintf("cat %s | grep -n '\\[mysqld'", *env.ConfPath)
     output, error := ExecuteSingleCmd(cmd)
     outputList := strings.Split(output, "\n")
     if len(outputList) == 0 {
@@ -106,7 +124,7 @@ func QueryInstanceConfigRange(portStr string) (int, int, string) {
         return 0, 0, ""
     }
     if beginIndex >= len(outputList) || outputList[beginIndex+1] == "" {
-        cmd = fmt.Sprintf("cat %s | wc -l", *ConfPath)
+        cmd = fmt.Sprintf("cat %s | wc -l", *env.ConfPath)
         output, error = ExecuteSingleCmd(cmd)
         if error != "" {
             return 0, 0, error
@@ -133,12 +151,26 @@ func QueryInstanceConfigRange(portStr string) (int, int, string) {
     return begin, end - 1, ""
 }
 
+func ModifyInstancePwd(port int, oldPwd string, newPwd string) (bool, string) {
+    if oldPwd == "" || newPwd == "" {
+        return true, ""
+    }
+
+    modifyPwdCmd := fmt.Sprintf("mysqladmin -h127.0.0.1 -uroot -P%d -p'%s' password '%s'", port, oldPwd, newPwd)
+    if _, error := ExecuteSingleCmd(modifyPwdCmd); error != "" {
+        logger.Error("modify instance %d pwd failed, error: %s", port, error)
+        return false, error
+    }
+
+    return true, ""
+}
+
 func ExecuteMultiCmd(commands []string) (string, string) {
     output := ""
     for _, cmd := range commands {
-        output, err := ExecuteSingleCmd(cmd)
-        if err != "" {
-            return output, err
+        output, error := ExecuteSingleCmd(cmd)
+        if error != "" {
+            return output, error
         }
     }
     return output, ""

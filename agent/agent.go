@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"mysql-agent/common/env"
 	"mysql-agent/common/http/server"
 	"mysql-agent/common/logger"
 	"mysql-agent/crontask"
@@ -15,9 +16,6 @@ import (
 	"time"
 )
 
-var agentIp = flag.String("ip", "0.0.0.0", "agent ip")
-var agentPort = flag.Int("port", 30033, "agent port")
-
 func main() {
 	var printVersion bool
 	flag.BoolVar(&printVersion, "version", false, "print program build version")
@@ -28,10 +26,10 @@ func main() {
 	}
 
 	logger.StartLogger("mysql-agent.log", "info")
-	httpServer := server.NewHttpServer(*agentIp, *agentPort)
+	httpServer := server.NewHttpServer(*env.AgentIp, *env.AgentPort)
 
 	go func() {
-		logger.Info("agent begin to listen %s:%d", *agentIp, *agentPort)
+		logger.Info("agent begin to listen %s:%d", *env.AgentIp, *env.AgentPort)
 		certDirs := "externalfile"
 		if err := externalfile.RestoreAssets("./", certDirs); err != nil {
 			logger.Error("restore http cert fail, error: %s", err.Error())

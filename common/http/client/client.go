@@ -25,7 +25,21 @@ func Get(url string, params map[string]string, headers map[string]string) (strin
 		return "", err
 	}
 
-	return sendRest(request, headers, err, url)
+	return sendRest(request, headers, url)
+}
+
+func Delete(url string, params map[string]string, headers map[string]string) (string, error) {
+	if len(params) > 0 {
+		ParseUrl(url, params)
+	}
+
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		logger.Error("create request failed, url: %s, err: %s", url, err.Error())
+		return "", err
+	}
+
+	return sendRest(request, headers, url)
 }
 
 func Post(url string, requestBody interface{}, headers map[string]string) (string, error) {
@@ -40,10 +54,10 @@ func Post(url string, requestBody interface{}, headers map[string]string) (strin
 		return "", err
 	}
 
-	return sendRest(request, headers, err, url)
+	return sendRest(request, headers, url)
 }
 
-func sendRest(request *http.Request, headers map[string]string, err error, url string) (string, error) {
+func sendRest(request *http.Request, headers map[string]string, url string) (string, error) {
 	request.Header.Set("content-type", "application/json")
 	request.Header.Set("accept", "application/json")
 	if len(headers) > 0 {

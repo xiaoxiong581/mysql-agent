@@ -11,6 +11,7 @@ type AddInstanceReq struct {
     Port     int    `json:"port" binding:"required"`
     ServerId int    `json:"serverId" binding:"required"`
     DataDir  string `json:"dataDir" binding:"required"`
+    Pwd      string `json:"pwd"`
 }
 
 type ModifyInstanceReq struct {
@@ -18,6 +19,12 @@ type ModifyInstanceReq struct {
     Properties map[string]string `json:"properties"`
 }
 
+type ModifyInstancePwdReq struct {
+    Port   int    `json:"port" binding:"required"`
+    OldPwd string `json:"oldPwd"`
+    NewPwd string `json:"newPwd"`
+}
+
 type OperateInstanceReq struct {
-    Port       int               `json:"port" binding:"required"`
+    Port int `json:"port" binding:"required"`
 }
