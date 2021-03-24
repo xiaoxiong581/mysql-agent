@@ -12,6 +12,11 @@ sh package.sh
 setsid ./mysql-agent
 ```
 
+可选参数：-ip={publish ip} -port={publish port} -confPath={mysql conf path}  
+1. ip: 发布接口的地址信息，默认值为127.0.0.1  
+2. port: 发布接口的端口号，默认值为30033  
+3. confPath: 往mysql写入配置信息的配置文件路径，默认为/etc/my.cnf，需要保证mysql可以读取加载，建议不修改  
+
 # interface  
 Install MySQL
 ```sh
